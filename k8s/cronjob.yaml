@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dns-updater
+  namespace: dns-updater
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  schedule: "*/15 * * * *"
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: dns-updater
+              image: ghcr.io/dukekautington3rd/dns-updater:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: GOOGLE_APPLICATION_CREDENTIALS
+                  value: /var/secrets/google/credentials.json
+                - name: DNS_UPDATER_CONFIG
+                  value: /config/config.yaml
+                - name: DNS_UPDATER_DRY_RUN
+                  value: "false"
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+                - name: google-cloud-dns
+                  mountPath: /var/secrets/google
+                  readOnly: true
+          volumes:
+            - name: config
+              configMap:
+                name: dns-updater-config
+            - name: google-cloud-dns
+              secret:
+                secretName: google-cloud-dns

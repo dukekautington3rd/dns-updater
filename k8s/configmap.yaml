@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-updater-config
+  namespace: dns-updater
+data:
+  config.yaml: |
+    project: domain-automation
+
+    ip_sources:
+      - https://api.ipify.org
+      - https://ifconfig.me/ip
+      - https://ipinfo.io/ip
+    ip_source_timeout_seconds: 10
+
+    records:
+      - name: one.kaut.io.
+        type: A
+        zone: kautio
+        ttl: 300
+        enabled: true
+
+      # Enable when dns-updater should maintain the apex A record.
+      - name: spillway.trade.
+        type: A
+        zone: spillway
+        ttl: 300
+        enabled: false
