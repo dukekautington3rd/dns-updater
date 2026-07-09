@@ -66,6 +66,21 @@ rm /tmp/google-cloud-dns.json
 
 The Google service account needs permission to list and change record sets for the target managed zones.
 
+## GHCR Pull Credential
+
+The CronJob runs under the `dns-updater` ServiceAccount, which references an image pull secret named `ghcr-creds`.
+
+To copy the existing FlowMap GHCR pull credential into this namespace:
+
+```sh
+kubectl create namespace dns-updater --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n flowmap get secret ghcr-creds -o yaml \
+  | sed 's/namespace: flowmap/namespace: dns-updater/' \
+  | kubectl apply -f -
+```
+
+Alternatively, create a fresh GHCR pull secret named `ghcr-creds` in the `dns-updater` namespace.
+
 ## IPinfo Token
 
 The updater can use an optional IPinfo token for the `https://ipinfo.io/ip` source. Store it as a Kubernetes secret:
