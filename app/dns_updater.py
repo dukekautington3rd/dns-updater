@@ -73,11 +73,15 @@ def load_records(config: dict[str, Any]) -> list[Record]:
     return records
 
 
-def fetch_public_ipv4(sources: list[str], timeout_seconds: float) -> str:
+def fetch_public_ipv4(sources: list[str], timeout_seconds: float, ipinfo_token: str | None) -> str:
     errors = []
     for source in sources:
         try:
-            response = requests.get(source, timeout=timeout_seconds)
+            headers = {}
+            if ipinfo_token and "ipinfo.io" in source:
+                headers["Authorization"] = f"Bearer {ipinfo_token}"
+
+            response = requests.get(source, headers=headers, timeout=timeout_seconds)
             response.raise_for_status()
             candidate = response.text.strip()
             ip = ipaddress.ip_address(candidate)
@@ -172,11 +176,12 @@ def main() -> int:
     records = load_records(config)
     sources = config.get("ip_sources") or ["https://api.ipify.org"]
     timeout_seconds = float(config.get("ip_source_timeout_seconds", 10))
+    ipinfo_token = os.environ.get("IPINFO_TOKEN")
 
     if not records:
         raise ValueError("no records configured")
 
-    ip = fetch_public_ipv4(sources, timeout_seconds)
+    ip = fetch_public_ipv4(sources, timeout_seconds, ipinfo_token)
     log(f"public IPv4 is {ip}")
 
     credentials = load_credentials(args.credentials)

@@ -8,9 +8,9 @@ data:
     project: domain-automation
 
     ip_sources:
+      - https://ipinfo.io/ip
       - https://api.ipify.org
       - https://ifconfig.me/ip
-      - https://ipinfo.io/ip
     ip_source_timeout_seconds: 10
 
     records:

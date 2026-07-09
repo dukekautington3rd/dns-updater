@@ -26,6 +26,12 @@ spec:
                   value: /config/config.yaml
                 - name: DNS_UPDATER_DRY_RUN
                   value: "false"
+                - name: IPINFO_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ipinfo
+                      key: token
+                      optional: true
               resources:
                 requests:
                   cpu: 25m

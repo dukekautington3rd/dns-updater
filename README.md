@@ -66,6 +66,18 @@ rm /tmp/google-cloud-dns.json
 
 The Google service account needs permission to list and change record sets for the target managed zones.
 
+## IPinfo Token
+
+The updater can use an optional IPinfo token for the `https://ipinfo.io/ip` source. Store it as a Kubernetes secret:
+
+```sh
+kubectl -n dns-updater create secret generic ipinfo \
+  --from-literal=token='<your-ipinfo-token>' \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+The CronJob reads that secret as `IPINFO_TOKEN`. If the secret is missing, the updater still runs and falls back to unauthenticated IP sources.
+
 ## Build
 
 GitHub Actions publishes the image to GHCR on every push to `main`:
