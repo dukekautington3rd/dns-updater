@@ -102,8 +102,18 @@ ghcr.io/dukekautington3rd/dns-updater:latest
 ```
 
 Before the multi-architecture image is pushed, the workflow builds a local
-`linux/amd64` image and scans it with Prisma Cloud Compute. The result is
-published to Prisma Cloud. A Prisma CI policy failure prevents the GHCR push.
+`linux/amd64` image and scans it with the official Prisma Cloud Compute GitHub
+Action. The result is published to Prisma Cloud. A Prisma CI policy failure
+prevents the GHCR push.
+
+Every run has a build ID in this format:
+
+```text
+ci-<GitHub-run-number>-<full-commit-SHA>
+```
+
+That tag identifies the scanned image in Prisma Cloud and is included in the
+final GHCR manifest alongside `latest`, the short SHA tag, and any release tag.
 
 Configure these repository or environment secrets in GitHub before the next
 same-repository PR, push, tag, or manual workflow run:

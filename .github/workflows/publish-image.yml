@@ -15,6 +15,10 @@ permissions:
   contents: read
   packages: write
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/dns-updater
+  BUILD_ID: ci-${{ github.run_number }}-${{ github.sha }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,15 +41,18 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/dns-updater
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.BUILD_ID }}
             type=sha,prefix=sha-
             type=ref,event=tag
 
       # Build a local image for Prisma Cloud Compute before publishing the
       # release's multi-architecture manifest to GHCR. `load: true` requires a
-      # single platform, so linux/amd64 is the CI scan target.
+      # single platform, so linux/amd64 is the CI scan target. The image tag is
+      # also published with the final manifest to correlate Prisma CI findings
+      # with a specific workflow run and source commit.
       - name: Build image for Prisma Cloud scan
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: docker/build-push-action@v6
@@ -54,44 +61,20 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
-          tags: dns-updater:prisma-scan
+          tags: ${{ env.IMAGE_NAME }}:${{ env.BUILD_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Download Prisma Cloud Compute scanner
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          PCC_URL: ${{ secrets.PCC_URL }}
-          PCC_ACCESS_KEY_ID: ${{ secrets.PCC_ACCESS_KEY_ID }}
-          PCC_SECRET_ACCESS_KEY: ${{ secrets.PCC_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-          : "${PCC_URL:?Set the PCC_URL GitHub Actions secret to the Prisma Cloud Compute Console URL.}"
-          : "${PCC_ACCESS_KEY_ID:?Set the PCC_ACCESS_KEY_ID GitHub Actions secret.}"
-          : "${PCC_SECRET_ACCESS_KEY:?Set the PCC_SECRET_ACCESS_KEY GitHub Actions secret.}"
-          curl --fail --silent --show-error \
-            --user "${PCC_ACCESS_KEY_ID}:${PCC_SECRET_ACCESS_KEY}" \
-            "${PCC_URL%/}/api/v1/util/twistcli" \
-            --output twistcli
-          chmod 0755 twistcli
-          ./twistcli --version
-
       - name: Scan image with Prisma Cloud Compute
+        id: prisma_scan
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          PCC_URL: ${{ secrets.PCC_URL }}
-          PCC_ACCESS_KEY_ID: ${{ secrets.PCC_ACCESS_KEY_ID }}
-          PCC_SECRET_ACCESS_KEY: ${{ secrets.PCC_SECRET_ACCESS_KEY }}
-        run: |
-          set -euo pipefail
-          ./twistcli images scan \
-            --address "${PCC_URL}" \
-            --user "${PCC_ACCESS_KEY_ID}" \
-            --password "${PCC_SECRET_ACCESS_KEY}" \
-            --publish \
-            --details \
-            --output-file prisma-image-scan.json \
-            dns-updater:prisma-scan
+        uses: PaloAltoNetworks/prisma-cloud-scan@v1
+        with:
+          pcc_console_url: ${{ secrets.PCC_URL }}
+          pcc_user: ${{ secrets.PCC_ACCESS_KEY_ID }}
+          pcc_pass: ${{ secrets.PCC_SECRET_ACCESS_KEY }}
+          image_name: ${{ env.IMAGE_NAME }}:${{ env.BUILD_ID }}
+          twistcli_publish: true
 
       - name: Build and publish
         uses: docker/build-push-action@v6
