@@ -43,6 +43,56 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=tag
 
+      # Build a local image for Prisma Cloud Compute before publishing the
+      # release's multi-architecture manifest to GHCR. `load: true` requires a
+      # single platform, so linux/amd64 is the CI scan target.
+      - name: Build image for Prisma Cloud scan
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: dns-updater:prisma-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Download Prisma Cloud Compute scanner
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PCC_URL: ${{ secrets.PCC_URL }}
+          PCC_ACCESS_KEY_ID: ${{ secrets.PCC_ACCESS_KEY_ID }}
+          PCC_SECRET_ACCESS_KEY: ${{ secrets.PCC_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          : "${PCC_URL:?Set the PCC_URL GitHub Actions secret to the Prisma Cloud Compute Console URL.}"
+          : "${PCC_ACCESS_KEY_ID:?Set the PCC_ACCESS_KEY_ID GitHub Actions secret.}"
+          : "${PCC_SECRET_ACCESS_KEY:?Set the PCC_SECRET_ACCESS_KEY GitHub Actions secret.}"
+          curl --fail --silent --show-error \
+            --user "${PCC_ACCESS_KEY_ID}:${PCC_SECRET_ACCESS_KEY}" \
+            "${PCC_URL%/}/api/v1/util/twistcli" \
+            --output twistcli
+          chmod 0755 twistcli
+          ./twistcli --version
+
+      - name: Scan image with Prisma Cloud Compute
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PCC_URL: ${{ secrets.PCC_URL }}
+          PCC_ACCESS_KEY_ID: ${{ secrets.PCC_ACCESS_KEY_ID }}
+          PCC_SECRET_ACCESS_KEY: ${{ secrets.PCC_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          ./twistcli images scan \
+            --address "${PCC_URL}" \
+            --user "${PCC_ACCESS_KEY_ID}" \
+            --password "${PCC_SECRET_ACCESS_KEY}" \
+            --publish \
+            --details \
+            --output-file prisma-image-scan.json \
+            dns-updater:prisma-scan
+
       - name: Build and publish
         uses: docker/build-push-action@v6
         with:
@@ -53,4 +103,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-

@@ -101,6 +101,20 @@ GitHub Actions publishes the image to GHCR on every push to `main`:
 ghcr.io/dukekautington3rd/dns-updater:latest
 ```
 
+Before the multi-architecture image is pushed, the workflow builds a local
+`linux/amd64` image and scans it with Prisma Cloud Compute. The result is
+published to Prisma Cloud. A Prisma CI policy failure prevents the GHCR push.
+
+Configure these repository or environment secrets in GitHub before the next
+same-repository PR, push, tag, or manual workflow run:
+
+- `PCC_URL` — Prisma Cloud Compute Console URL, including `https://`.
+- `PCC_ACCESS_KEY_ID` — Prisma Cloud access key ID for CI scanning.
+- `PCC_SECRET_ACCESS_KEY` — corresponding secret key.
+
+Forked pull requests skip the Prisma scan because GitHub does not expose
+repository secrets to untrusted forks.
+
 To build it locally:
 
 ```sh

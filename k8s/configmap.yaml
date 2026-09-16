@@ -25,4 +25,4 @@ data:
         type: A
         zone: spillway
         ttl: 300
-        enabled: false
+        enabled: true
